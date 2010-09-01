@@ -1,7 +1,9 @@
-# clj-twitter-feelings
+﻿# clj-twitter-feelings
 
 Shows how people on twitter are feeling, in real-time.
 Meant to be an example of a swing app in Clojure.
+
+![Screenshot](http://img176.imageshack.us/img176/1198/154823046.png)
 
 ## Usage
 
