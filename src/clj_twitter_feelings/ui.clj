@@ -198,7 +198,7 @@
       (.setRange 0.0 100.0))
     (doto frame
       (.setIconImage
-        (ImageIO/read (resource "clj_twitter_adjectives/favicon.jpg")))
+        (ImageIO/read (resource "clj_twitter_feelings/favicon.jpg")))
       (.setDefaultCloseOperation WindowConstants/EXIT_ON_CLOSE)
       (.setResizable false)
       (.setContentPane

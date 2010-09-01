@@ -22,7 +22,7 @@
 
 (defn adjectives []
   (->> adjective-files
-    (map #(str "clj_twitter_adjectives/adjectives/" % ".txt"))
+    (map #(str "clj_twitter_feelings/adjectives/" % ".txt"))
     (map resource)
     (reduce
       (fn [acc ^java.net.URL url]
