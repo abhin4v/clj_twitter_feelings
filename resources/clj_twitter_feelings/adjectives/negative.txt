@@ -53,6 +53,7 @@ hungry
 hurt
 ill
 infamous
+irritated
 jealous
 lonely
 mad
@@ -71,6 +72,7 @@ scary
 shy
 shitty
 sick
+sinister
 sleepy
 sore
 strange

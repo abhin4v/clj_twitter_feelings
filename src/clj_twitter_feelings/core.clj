@@ -58,7 +58,8 @@
                     (lazy-seq
                      (if-let [line (.readLine rdr)]
                        (cons line (this rdr))
-                       (.close rdr))))
+                       (do (.close rdr)
+                        (.. client getConnectionManager shutdown)))))
         baseurl "http://stream.twitter.com/1/statuses/"
         url (str baseurl method ".json")
         http-params

@@ -6,8 +6,8 @@
                         JButton JOptionPane
                         Timer WindowConstants UIManager]
            [org.jfree.chart ChartFactory ChartPanel]
-           [org.jfree.chart.plot PiePlot]
            [org.jfree.chart.labels StandardPieSectionLabelGenerator]
+           [org.jfree.chart.plot PiePlot]
            [org.jfree.data.general DefaultPieDataset]
            [org.jfree.data.time Millisecond TimeSeries TimeSeriesCollection]
            [org.jfree.ui RefineryUtilities])
@@ -40,10 +40,12 @@
 
 (defn create-auth-input-dialog
   "Creates a JDialog to take the input of username and password from the user.
+  Supports <ENTER> and <ESCAPE> keys for OKing and Cancelling the input
+  respectively.
   Returns the dialog.
-  
+
   Arguments are:
-    
+
     parent: the parent frame
     dialog-title: the title of the dialog
     dialog-message: the message shown in the dialog
@@ -72,12 +74,28 @@
    ^String username-lbl-text ^String password-lbl-text input-field-size
    ^String ok-btn-text ^String cancel-btn-text
    validation-fn ok-fn cancel-fn]
-  (let [username-input (JTextField. (int input-field-size))
+  (let [dialog (JDialog. parent dialog-title true)
+        username-input (JTextField. (int input-field-size))
         password-input (JPasswordField. (int input-field-size))
         validation-msg-lbl (JLabel. " ")
-        ok-btn (JButton. ok-btn-text)
-        cancel-btn (JButton. cancel-btn-text)
-        dialog (JDialog. parent dialog-title true)]
+        ok-btn
+          (doto (JButton. ok-btn-text)
+            (add-action-listener
+              (fn [_]
+                (let [username (.getText username-input)
+                      password (.getText password-input)]
+                  (if-let [validation-msg
+                            (validation-fn username password dialog)]
+                    (.setText validation-msg-lbl validation-msg)
+                    (do (.setText validation-msg-lbl " ")
+                      (.setVisible dialog false)
+                      (ok-fn username password dialog)))))))
+        cancel-btn
+          (doto (JButton. cancel-btn-text)
+            (add-action-listener
+              (fn [_]
+                (.setVisible dialog false)
+                (cancel-fn dialog))))]
     (doseq [^JTextField in [username-input password-input]]
       (.addKeyListener in
         (proxy [KeyAdapter] []
@@ -96,32 +114,18 @@
           (JLabel. username-lbl-text) username-input
           (JLabel. password-lbl-text) password-input
           validation-msg-lbl {:span 2 :align "center"}
-          (miglayout (JPanel.)
-            (doto ok-btn
-              (add-action-listener
-                (fn [e]
-                  (let [username (.getText username-input)
-                        password (.getText password-input)]
-                    (if-let [validation-msg
-                              (validation-fn username password dialog)]
-                      (.setText validation-msg-lbl validation-msg)
-                      (do (.setText validation-msg-lbl " ")
-                        (.setVisible dialog false)
-                        (ok-fn username password dialog)))))))
-            (doto cancel-btn
-              (add-action-listener
-                (fn [e]
-                  (.setVisible dialog false)
-                  (cancel-fn dialog)))))
-            {:span 2 :align "center"}))
+          (miglayout (JPanel.) ok-btn cancel-btn) {:span 2 :align "center"}
+      ))
       (.setSize dialog-width dialog-height))))
 
 (defn init-gui [adjective-map]
   (let [frame (JFrame. "Twitter Feelings")
 
+        adjective-types (sort (keys @adjective-type-count))
         ^DefaultPieDataset pie-dataset
-          (reduce #(do (.setValue ^DefaultPieDataset %1 ^String %2 0) %1)
-            (DefaultPieDataset.) (sort (keys @adjective-type-count)))
+          (reduce
+            (fn [^DefaultPieDataset ds ^String key] (doto ds (.setValue key 0)))
+            (DefaultPieDataset.) adjective-types)
         pie-chart (ChartFactory/createPieChart
                     "Distribution" pie-dataset true false false)
         pie-chart-panel (doto (ChartPanel. pie-chart)
@@ -129,10 +133,9 @@
 
         time-series-map
           (into (sorted-map)
-            (map #(vector % (TimeSeries. % Millisecond))
-              (keys @adjective-type-count)))
+            (map #(vector % (TimeSeries. % Millisecond)) adjective-types))
         time-series-dataset
-          (reduce #(do (.addSeries ^TimeSeriesCollection %1 %2) %1)
+          (reduce #(doto ^TimeSeriesCollection %1 (.addSeries %2))
             (TimeSeriesCollection.) (vals time-series-map))
         time-series-chart
           (ChartFactory/createTimeSeriesChart
@@ -161,7 +164,7 @@
             "Credentials" "Input your Twitter credentials" 220 150
             "Screen Name" "Password" 20
             "OK" "Cancel"
-            (fn [uname pass dialog]
+            (fn [uname pass _]
               (when (or (empty? uname) (empty? pass))
                 (str "Please input Screen Name and Password")))
             (fn [uname pass ^JDialog dialog]
@@ -178,7 +181,7 @@
                         "Error" :error)
                       (.setVisible dialog true)))))
               (.start timer))
-            (fn [dialog] (exit-app frame)))]
+            (fn [_] (exit-app frame)))]
     (add-watch adjective-seen :adjective-lbl
       (fn [_ _ _ n]
         (do-swing
