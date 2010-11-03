@@ -119,7 +119,11 @@
       (.setSize dialog-width dialog-height))))
 
 (defn init-gui [adjective-map]
-  (let [frame (JFrame. "Twitter Feelings")
+  (let [frame (doto (JFrame. "Twitter Feelings")
+                (.setIconImage
+                  (ImageIO/read (resource "clj_twitter_feelings/favicon.jpg")))
+                (.setDefaultCloseOperation WindowConstants/EXIT_ON_CLOSE)
+                (.setResizable false))
 
         adjective-types (sort (keys @adjective-type-count))
         ^DefaultPieDataset pie-dataset
@@ -164,9 +168,11 @@
             "Credentials" "Input your Twitter credentials" 220 150
             "Screen Name" "Password" 20
             "OK" "Cancel"
+            ;validation-fn
             (fn [uname pass _]
               (when (or (empty? uname) (empty? pass))
                 (str "Please input Screen Name and Password")))
+            ;ok-fn
             (fn [uname pass ^JDialog dialog]
               (future
                 (try
@@ -181,13 +187,18 @@
                         "Error" :error)
                       (.setVisible dialog true)))))
               (.start timer))
+            ;cancel-fn
             (fn [_] (exit-app frame)))]
+
+    ;add watches
     (add-watch adjective-seen :adjective-lbl
       (fn [_ _ _ n]
         (do-swing
           (.setText adjective-lbl (str "<html><h2>" n "</h2></html>")))))
     (add-watch status-seen :status-lbl
       (fn [_ _ _ n] (do-swing (.setText status-lbl n))))
+
+    ;do some configuration of the plots
     (doto ^PiePlot (.getPlot pie-chart)
       (.setNoDataMessage "No data available")
       (.setLabelGenerator (StandardPieSectionLabelGenerator. "{0} {2}"))
@@ -199,11 +210,9 @@
       (.setFixedAutoRange 120000.0))
     (doto (.. time-series-chart getXYPlot getRangeAxis)
       (.setRange 0.0 100.0))
+
+    ;layout the content in the frame and make it visible
     (doto frame
-      (.setIconImage
-        (ImageIO/read (resource "clj_twitter_feelings/favicon.jpg")))
-      (.setDefaultCloseOperation WindowConstants/EXIT_ON_CLOSE)
-      (.setResizable false)
       (.setContentPane
         (miglayout (JPanel.)
           :layout [:wrap 1]
@@ -217,6 +226,8 @@
       (.pack)
       (.setVisible true)
       (RefineryUtilities/centerFrameOnScreen))
+
+    ;show the auth-input-dialog
     (doto auth-input-dialog
       (RefineryUtilities/centerFrameOnScreen)
       (.setVisible true))))
