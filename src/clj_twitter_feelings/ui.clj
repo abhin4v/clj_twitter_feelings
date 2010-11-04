@@ -3,8 +3,7 @@
            [java.awt.event KeyEvent KeyAdapter]
            [javax.imageio ImageIO]
            [javax.swing JPanel JFrame JLabel JDialog JTextField JPasswordField
-                        JButton JOptionPane
-                        Timer WindowConstants UIManager]
+                        JButton JOptionPane Timer WindowConstants UIManager]
            [org.jfree.chart ChartFactory ChartPanel]
            [org.jfree.chart.labels StandardPieSectionLabelGenerator]
            [org.jfree.chart.plot PiePlot]
@@ -25,12 +24,12 @@
   "org.jvnet.substance.skin.SubstanceModerateLookAndFeel")
 
 (let [message-type {
-      :error JOptionPane/ERROR_MESSAGE
-      :info JOptionPane/INFORMATION_MESSAGE
-      :warn JOptionPane/WARNING_MESSAGE
-      :question JOptionPane/QUESTION_MESSAGE
-      :plain JOptionPane/PLAIN_MESSAGE
-    }]
+        :error    JOptionPane/ERROR_MESSAGE
+        :info     JOptionPane/INFORMATION_MESSAGE
+        :warn     JOptionPane/WARNING_MESSAGE
+        :question JOptionPane/QUESTION_MESSAGE
+        :plain    JOptionPane/PLAIN_MESSAGE
+     }]
   (defn show-message [frame message title type]
     (JOptionPane/showMessageDialog frame message title (type message-type))))
 
@@ -40,7 +39,7 @@
 
 (defn create-auth-input-dialog
   "Creates a JDialog to take the input of username and password from the user.
-  Supports <ENTER> and <ESCAPE> keys for OKing and Cancelling the input
+  Supports the <ENTER> and <ESCAPE> keys for OKing and Cancelling the dialog
   respectively.
   Returns the dialog.
 
@@ -61,13 +60,16 @@
       the function is called with arguments: username, password, this dialog.
       if the function return a string, it is shown on the dialog as the error
       message and the dialog remains visible. otherwise ok-fn is called.
+      this function is called in the swing event thread.
     ok-fn: a function which is called when the user presses ok button and the
       input is valid as per the call to validation-fn.
       the function is called with arguments: username, password, this dialog.
       the dialog is hidden before the call.
+      this function is called in the swing event thread.
     cancel-fn: a function which is called when the user presses cancel button.
       the function is called with arguments: this dialog.
       the dialog is hidden before the call.
+      this function is called in the swing event thread.
   "
   [^JFrame parent
    ^String dialog-title ^String dialog-message dialog-width dialog-height
@@ -110,7 +112,7 @@
       (.setContentPane
         (miglayout (JPanel.)
           :layout {:wrap 2}
-          (JLabel. dialog-message) {:span 2}
+          (JLabel. dialog-message) {:span 2 :align "center"}
           (JLabel. username-lbl-text) username-input
           (JLabel. password-lbl-text) password-input
           validation-msg-lbl {:span 2 :align "center"}
@@ -126,6 +128,7 @@
                 (.setResizable false))
 
         adjective-types (sort (keys @adjective-type-count))
+
         ^DefaultPieDataset pie-dataset
           (reduce
             (fn [^DefaultPieDataset ds ^String key] (doto ds (.setValue key 0)))
@@ -155,7 +158,7 @@
 
         timer (doto (Timer. 1000 nil)
                 (add-action-listener
-                  (fn [e]
+                  (fn [_]
                     (let [a-count @adjective-type-count
                           total (reduce + 0 (vals a-count))]
                       (doseq [[^String k v] a-count]
@@ -165,13 +168,13 @@
 
         ^JDialog auth-input-dialog
           (create-auth-input-dialog frame
-            "Credentials" "Input your Twitter credentials" 220 150
+            "Credentials" "Input your Twitter credentials" 250 150
             "Screen Name" "Password" 20
             "OK" "Cancel"
             ;validation-fn
             (fn [uname pass _]
               (when (or (empty? uname) (empty? pass))
-                (str "Please input Screen Name and Password")))
+                (str "Screen Name and Password cannot be empty!")))
             ;ok-fn
             (fn [uname pass ^JDialog dialog]
               (future
@@ -181,6 +184,7 @@
                     [(adjective-processor adjective-map) (status-processor)])
                   (catch Exception e
                     (do-swing
+                      (.stop timer)
                       (show-message frame
                         (str "Error happened: " (.getMessage e)
                           ".\nPlease restart.")
@@ -192,11 +196,11 @@
 
     ;add watches
     (add-watch adjective-seen :adjective-lbl
-      (fn [_ _ _ n]
+      (fn [_ _ _ adj]
         (do-swing
-          (.setText adjective-lbl (str "<html><h2>" n "</h2></html>")))))
+          (.setText adjective-lbl (str "<html><h2>" adj "</h2></html>")))))
     (add-watch status-seen :status-lbl
-      (fn [_ _ _ n] (do-swing (.setText status-lbl n))))
+      (fn [_ _ _ sts] (do-swing (.setText status-lbl sts))))
 
     ;do some configuration of the plots
     (doto ^PiePlot (.getPlot pie-chart)
@@ -215,9 +219,9 @@
     (doto frame
       (.setContentPane
         (miglayout (JPanel.)
-          :layout [:wrap 1]
+          :layout {:wrap 1}
           (miglayout (JPanel.)
-            :layout [:wrap 2]
+            :layout {:wrap 2}
             (JLabel. "<html><h1>How is Twitter feeling now?</h1></html>")
               {:align "left"}
             adjective-lbl {:align "right"}
